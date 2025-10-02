@@ -48,14 +48,28 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // MongoDB connection
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI || process.env.ATLAS_URI || 'mongodb://localhost:27017/mto-maintenance', {
+    const mongoUri = process.env.MONGODB_URI || process.env.ATLAS_URI || 'mongodb://localhost:27017/mto-maintenance';
+    
+    const conn = await mongoose.connect(mongoUri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
+      tlsAllowInvalidCertificates: true,
+      serverSelectionTimeoutMS: 30000,
+      socketTimeoutMS: 45000,
+      maxPoolSize: 10,
+      retryWrites: true
     });
+    
     console.log(`MongoDB Connected: ${conn.connection.host}`);
+    console.log('Database connection successful');
+    
   } catch (error) {
-    console.error('Database connection error:', error);
-    process.exit(1);
+    console.error('Database connection error:', error.message);
+    console.log('Retrying database connection in 5 seconds...');
+    
+    setTimeout(() => {
+      connectDB();
+    }, 5000);
   }
 };
 
@@ -69,6 +83,11 @@ app.use(session({
   saveUninitialized: false,
   store: MongoStore.create({
     mongoUrl: process.env.MONGODB_URI || process.env.ATLAS_URI || 'mongodb://localhost:27017/mto-maintenance',
+    mongoOptions: {
+      tlsAllowInvalidCertificates: true,
+      serverSelectionTimeoutMS: 30000,
+      socketTimeoutMS: 45000
+    },
     collectionName: 'sessions',
     ttl: 24 * 60 * 60 // 24 hours
   }),
