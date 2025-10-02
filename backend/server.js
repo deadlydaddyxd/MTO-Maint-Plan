@@ -50,53 +50,107 @@ const connectDB = async () => {
   try {
     const mongoUri = process.env.MONGODB_URI || process.env.ATLAS_URI || 'mongodb://localhost:27017/mto-maintenance';
     
+    console.log('🔄 Attempting to connect to MongoDB Atlas...');
+    console.log('📍 Connection URI (masked):', mongoUri.replace(/\/\/[^:]+:[^@]+@/, '//***:***@'));
+    
     const conn = await mongoose.connect(mongoUri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      tlsAllowInvalidCertificates: true,
       serverSelectionTimeoutMS: 30000,
       socketTimeoutMS: 45000,
+      connectTimeoutMS: 30000,
+      heartbeatFrequencyMS: 10000,
       maxPoolSize: 10,
-      retryWrites: true
+      minPoolSize: 2,
+      maxIdleTimeMS: 30000,
+      bufferMaxEntries: 0,
+      retryWrites: true,
+      // SSL/TLS is required for MongoDB Atlas
+      ssl: true,
+      tls: true,
+      tlsAllowInvalidCertificates: false,
+      tlsAllowInvalidHostnames: false
     });
     
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
-    console.log('Database connection successful');
+    console.log(`✅ MongoDB Connected Successfully!`);
+    console.log(`🏠 Host: ${conn.connection.host}`);
+    console.log(`📊 Database: ${conn.connection.name}`);
+    console.log(`🔄 Ready State: ${conn.connection.readyState}`);
+    
+    // Test the connection
+    await mongoose.connection.db.admin().ping();
+    console.log('🏓 Database ping successful!');
     
   } catch (error) {
-    console.error('Database connection error:', error.message);
-    console.log('Retrying database connection in 5 seconds...');
+    console.error('❌ Database connection failed:', error.message);
+    console.error('🔍 Error code:', error.code);
+    console.error('🏷️  Error name:', error.name);
     
-    setTimeout(() => {
-      connectDB();
-    }, 5000);
+    // Detailed error logging
+    if (error.message.includes('IP') || error.message.includes('whitelist')) {
+      console.log('🚫 IP Whitelist Issue: Add 0.0.0.0/0 to MongoDB Atlas Network Access');
+    } else if (error.message.includes('authentication')) {
+      console.log('🔑 Authentication Issue: Check MongoDB credentials');
+    } else if (error.message.includes('timeout')) {
+      console.log('⏱️  Timeout Issue: Network connectivity problem');
+    }
+    
+    console.log('⚠️  App will continue without database. Some features may be limited.');
+    
+    // Retry with exponential backoff in development
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('🔄 Retrying connection in 15 seconds...');
+      setTimeout(() => {
+        connectDB();
+      }, 15000);
+    }
   }
 };
 
 connectDB();
 
-// Session configuration
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'fallback-secret-key',
-  name: process.env.SESSION_NAME || 'mto_session',
-  resave: false,
-  saveUninitialized: false,
-  store: MongoStore.create({
-    mongoUrl: process.env.MONGODB_URI || process.env.ATLAS_URI || 'mongodb://localhost:27017/mto-maintenance',
-    mongoOptions: {
-      tlsAllowInvalidCertificates: true,
-      serverSelectionTimeoutMS: 30000,
-      socketTimeoutMS: 45000
-    },
-    collectionName: 'sessions',
-    ttl: 24 * 60 * 60 // 24 hours
-  }),
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  }
-}));
+// Session configuration - with MongoDB Atlas compatibility
+try {
+  app.use(session({
+    secret: process.env.SESSION_SECRET || 'fallback-secret-key',
+    name: process.env.SESSION_NAME || 'mto_session',
+    resave: false,
+    saveUninitialized: false,
+    store: MongoStore.create({
+      mongoUrl: process.env.MONGODB_URI || process.env.ATLAS_URI || 'mongodb://localhost:27017/mto-maintenance',
+      mongoOptions: {
+        serverSelectionTimeoutMS: 30000,
+        socketTimeoutMS: 45000,
+        ssl: true,
+        tls: true,
+        tlsAllowInvalidCertificates: false
+      },
+      collectionName: 'sessions',
+      ttl: 24 * 60 * 60, // 24 hours
+      touchAfter: 24 * 3600 // lazy session update
+    }),
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: 'lax'
+    }
+  }));
+  console.log('✅ Session store configured with MongoDB Atlas');
+} catch (error) {
+  console.warn('⚠️  Failed to configure MongoDB session store, using memory store:', error.message);
+  app.use(session({
+    secret: process.env.SESSION_SECRET || 'fallback-secret-key',
+    name: process.env.SESSION_NAME || 'mto_session',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: false,
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+  }));
+}
 
 // Health check route
 app.get('/api/health', (req, res) => {
