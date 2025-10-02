@@ -35,14 +35,37 @@ if (process.env.NODE_ENV !== 'production') {
 
 // CORS configuration
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:5173',
-    'https://mto-maint-plan.vercel.app',
-    process.env.FRONTEND_URL
-  ].filter(Boolean), // Remove any undefined values
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // List of allowed origins
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'https://mto-maint-plan.vercel.app',
+      process.env.FRONTEND_URL
+    ].filter(Boolean);
+    
+    // Check if origin is in allowed list
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
+    }
+    
+    // Allow all Vercel preview deployments
+    if (origin.includes('.vercel.app')) {
+      return callback(null, true);
+    }
+    
+    // Allow Railway domains for testing
+    if (origin.includes('railway.app')) {
+      return callback(null, true);
+    }
+    
+    return callback(null, true); // For development, allow all origins
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-session-id']
 }));
 
