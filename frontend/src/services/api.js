@@ -1,8 +1,12 @@
 import axios from 'axios';
 
 // Create axios instance with base configuration
+const baseURL = import.meta.env.VITE_API_URL || 'https://veh-maint-app-production.up.railway.app/api';
+console.log('🔧 API Base URL:', baseURL);
+console.log('🌍 Environment:', import.meta.env.MODE);
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: baseURL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -95,7 +99,12 @@ export const authService = {
   // Login user
   login: async (credentials) => {
     try {
+      console.log('🔐 Attempting login with URL:', api.defaults.baseURL);
+      console.log('📝 Credentials:', { identifier: credentials.identifier, password: '[HIDDEN]' });
+      
       const response = await api.post('/auth/login', credentials);
+      console.log('✅ Login response:', response.data);
+      
       if (response.data.success) {
         SessionManager.setSession(
           response.data.sessionId,
@@ -105,7 +114,18 @@ export const authService = {
       }
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Login failed' };
+      console.error('❌ Login error:', error);
+      console.error('🔍 Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        config: {
+          url: error.config?.url,
+          baseURL: error.config?.baseURL,
+          method: error.config?.method
+        }
+      });
+      throw error.response?.data || { message: 'Login failed: ' + error.message };
     }
   },
 
