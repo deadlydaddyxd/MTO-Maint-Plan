@@ -1,39 +1,92 @@
-import { useState } from 'react'
-import axios from 'axios'
+import React, { useState, useEffect } from 'react';
+import api from '../services/api';
 
-const MaintenanceScheduler = ({ maintenanceTasks, equipment, drivers, onUpdate }) => {
-  const [newTask, setNewTask] = useState({
+const MaintenanceScheduler = ({ user }) => {
+  const [maintenanceTasks, setMaintenanceTasks] = useState([]);
+  const [equipment, setEquipment] = useState([]);
+  const [drivers, setDrivers] = useState([]);
+  const [technicians, setTechnicians] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('');
+
+  const [formData, setFormData] = useState({
     equipment: '',
-    driver: '',
     task: '',
     frequency: 'Monthly',
-    dueDate: ''
-  })
-  const [isAdding, setIsAdding] = useState(false)
-  const [filter, setFilter] = useState('all')
+    priority: 'Medium',
+    dueDate: '',
+    assignedDriver: '',
+    assignedLADRep: '',
+    estimatedDuration: '',
+    notes: '',
+    maintenanceType: 'Preventive'
+  });
 
-  const frequencies = ['Weekly', 'Fortnightly', 'Monthly', 'Quarterly']
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [maintenanceRes, equipmentRes, driversRes, techniciansRes] = await Promise.all([
+        api.get('/maintenance'),
+        api.get('/equipment'),
+        api.get('/drivers'),
+        api.get('/technicians')
+      ]);
+      
+      setMaintenanceTasks(maintenanceRes.data);
+      setEquipment(equipmentRes.data);
+      setDrivers(driversRes.data);
+      setTechnicians(techniciansRes.data);
+      setError('');
+    } catch (err) {
+      setError('Failed to fetch data');
+      console.error('Error fetching data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (!newTask.equipment || !newTask.task || !newTask.dueDate) return
-
+    e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/maintenance/add', newTask)
-      setNewTask({
-        equipment: '',
-        driver: '',
-        task: '',
-        frequency: 'Monthly',
-        dueDate: ''
-      })
-      setIsAdding(false)
-      onUpdate()
-    } catch (error) {
-      console.error('Error adding maintenance task:', error)
-      alert('Error adding maintenance task. Please try again.')
+      const submitData = {
+        ...formData,
+        createdBy: user.id,
+        dueDate: new Date(formData.dueDate),
+        estimatedDuration: parseFloat(formData.estimatedDuration)
+      };
+
+      if (editingTask) {
+        await api.put(`/maintenance/${editingTask._id}`, submitData);
+        setSuccess('Maintenance task updated successfully');
+      } else {
+        await api.post('/maintenance', submitData);
+        setSuccess('Maintenance task created successfully');
+      }
+      
+      await fetchData();
+      resetForm();
+      setIsFormOpen(false);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to save maintenance task');
+      setTimeout(() => setError(''), 3000);
     }
-  }
+  };
 
   const handleStatusToggle = async (taskId, currentStatus) => {
     try {

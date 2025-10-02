@@ -10,6 +10,8 @@ const equipmentSchema = new Schema({
     enum: ['A Vehicle', 'B Vehicle', 'Plant', 'Generator Set'] 
   },
   vehicleId: { type: String, required: true, unique: true, trim: true },
+  unNumber: { type: String, required: true, unique: true, trim: true }, // UN Number from CSV
+  vehicleType: { type: String, required: true, trim: true }, // Vehicle Type from CSV
   location: { type: String, required: true, trim: true },
   year: { type: Number, required: true },
   kva: { type: Number }, // For generator sets
@@ -20,6 +22,10 @@ const equipmentSchema = new Schema({
     default: 'Operational' 
   },
   lastMaintenanceDate: { type: Date },
+  lastMaintenanceDoneDate: { type: Date }, // Last Maintenance Done Date
+  lastOilChangeDate: { type: Date }, // Last Oil Change Date
+  lastMajorFaultDate: { type: Date }, // Last Major Fault Date
+  lastMajorFaultType: { type: String, trim: true }, // Last Major Fault Type
   totalRunningHours: { type: Number, default: 0 },
   fuelCapacity: { type: Number }, // For vehicles with fuel systems
   manufacturer: { type: String, trim: true },

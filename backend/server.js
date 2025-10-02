@@ -195,6 +195,7 @@ try {
   const equipmentRouter = require('./routes/equipment');
   const maintenanceRouter = require('./routes/maintenance');
   const driversRouter = require('./routes/drivers');
+  const techniciansRouter = require('./routes/technicians');
 
   // Apply routes
   app.use('/api/auth', authRoutes);
@@ -202,6 +203,7 @@ try {
   app.use('/api/equipment', equipmentRouter);
   app.use('/api/maintenance', maintenanceRouter);
   app.use('/api/drivers', driversRouter);
+  app.use('/api/technicians', techniciansRouter);
 } catch (error) {
   console.log('Some route files may not exist yet, will be created:', error.message);
 }
