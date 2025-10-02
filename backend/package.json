@@ -12,7 +12,9 @@
     "build": "echo 'No build process needed for backend'",
     "vercel-build": "npm install",
     "seed": "node seed.js",
-    "seed:prod": "NODE_ENV=production node seed.js"
+    "seed:prod": "NODE_ENV=production node seed.js",
+    "seed:users": "node seedUsers.js",
+    "seed:users:prod": "NODE_ENV=production node seedUsers.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
