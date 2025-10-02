@@ -7,7 +7,7 @@ const { authenticateSession, authorizeRole } = require('../middleware/auth');
 const cloudStorageService = require('../services/cloudStorageService');
 const emailService = require('../services/emailService');
 const pdfService = require('../services/pdfService');
-const whatsappService = require('../services/whatsappService');
+const manualDistributionService = require('../services/whatsappService');
 
 const router = express.Router();
 
@@ -399,10 +399,13 @@ router.patch('/:id/complete', [
           await emailService.sendTaskCompletionNotification(taskOrder, emailRecipients);
         }
 
-        // Send WhatsApp with PDF
-        const whatsappRecipients = await getWhatsAppRecipients(taskOrder);
-        if (whatsappRecipients.length > 0) {
-          await whatsappService.sendBulkMessages(whatsappRecipients, taskOrder, pdfResult.pdfUrl);
+        // Prepare manual distribution information
+        const distributionRecipients = await getDistributionRecipients(taskOrder);
+        if (distributionRecipients.length > 0) {
+          const distributionInfo = await manualDistributionService.prepareCompletionReport(taskOrder, pdfResult.pdfUrl);
+          
+          // Store distribution info in task order for frontend access
+          taskOrder.completionReportPdf.distributionInfo = distributionInfo.distributionInfo;
         }
       }
     } catch (pdfError) {
@@ -457,32 +460,44 @@ async function getNotificationRecipients(type, taskOrder) {
   return recipients.filter(email => email); // Remove null/undefined emails
 }
 
-// Helper function to get WhatsApp recipients
-async function getWhatsAppRecipients(taskOrder) {
+// Helper function to get distribution recipients for manual WhatsApp sharing
+async function getDistributionRecipients(taskOrder) {
   const recipients = [];
   
   try {
-    // Get driver's phone number
-    if (taskOrder.identifiedBy.driverContact) {
-      recipients.push(taskOrder.identifiedBy.driverContact);
+    // Get driver info
+    if (taskOrder.identifiedBy) {
+      recipients.push({
+        name: taskOrder.identifiedBy.driverName,
+        phone: taskOrder.identifiedBy.driverContact || 'Contact via unit',
+        role: 'Driver (Issue Identifier)'
+      });
     }
     
-    // Get requestor's phone number
-    const requestor = await User.findById(taskOrder.requestedBy).select('phoneNumber');
-    if (requestor && requestor.phoneNumber) {
-      recipients.push(requestor.phoneNumber);
+    // Get requestor info
+    const requestor = await User.findById(taskOrder.requestedBy).select('firstName lastName phoneNumber role');
+    if (requestor) {
+      recipients.push({
+        name: `${requestor.firstName} ${requestor.lastName}`,
+        phone: requestor.phoneNumber || 'Check user directory',
+        role: `${requestor.role} (Task Requestor)`
+      });
     }
     
-    // Get commanding officer's phone number
-    const co = await User.findOne({ role: 'Commanding Officer', isActive: true }).select('phoneNumber');
-    if (co && co.phoneNumber) {
-      recipients.push(co.phoneNumber);
+    // Get commanding officer info
+    const co = await User.findOne({ role: 'Commanding Officer', isActive: true }).select('firstName lastName phoneNumber');
+    if (co) {
+      recipients.push({
+        name: `${co.firstName} ${co.lastName}`,
+        phone: co.phoneNumber || 'Check user directory',
+        role: 'Commanding Officer'
+      });
     }
   } catch (error) {
-    console.error('Error getting WhatsApp recipients:', error);
+    console.error('Error getting distribution recipients:', error);
   }
   
-  return recipients.filter(phone => phone); // Remove null/undefined phone numbers
+  return recipients;
 }
 
 module.exports = router;

@@ -228,9 +228,16 @@ const taskOrderSchema = new Schema({
     generated: { type: Boolean, default: false },
     pdfUrl: { type: String }, // Cloud storage URL
     generatedDate: { type: Date },
-    whatsappSent: { type: Boolean, default: false },
-    whatsappSentDate: { type: Date },
-    recipientNumbers: [{ type: String }]
+    manualDistributionRequired: { type: Boolean, default: true },
+    distributionInfo: {
+      recipients: [{
+        name: { type: String },
+        phone: { type: String },
+        role: { type: String }
+      }],
+      message: { type: String },
+      instructions: { type: String }
+    }
   },
   
   // Notifications
