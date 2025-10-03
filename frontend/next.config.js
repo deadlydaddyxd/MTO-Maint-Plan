@@ -1,9 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   images: {
-    domains: ['localhost'],
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'https',
+        hostname: 'veh-maint-app-production.up.railway.app',
+      },
+    ],
   },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
@@ -16,7 +24,7 @@ const nextConfig = {
       },
     ];
   },
-  // Enable static exports for better deployment
+  outputFileTracingRoot: __dirname,
   output: 'standalone',
 }
 
