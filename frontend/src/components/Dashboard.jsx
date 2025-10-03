@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { vehicleData, generateMaintenanceTasks } from '../data/vehicleData'
 
-const Dashboard = ({ maintenanceTasks, equipment }) => {
+const Dashboard = ({ user, onViewChange }) => {
   const [filterCategory, setFilterCategory] = useState('all')
   const [filterLocation, setFilterLocation] = useState('all')
   const [filterPriority, setFilterPriority] = useState('all')

@@ -1,16 +1,15 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
+  "framework": "nextjs",
+  "buildCommand": "next build",
   "installCommand": "npm install",
-  "framework": "vite",
   "env": {
     "NODE_ENV": "production",
-    "VITE_API_URL": "https://veh-maint-app-production.up.railway.app/api"
+    "NEXT_PUBLIC_API_URL": "https://veh-maint-app-production.up.railway.app/api"
   },
   "rewrites": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "source": "/api/:path*",
+      "destination": "https://veh-maint-app-production.up.railway.app/api/:path*"
     }
   ]
 }

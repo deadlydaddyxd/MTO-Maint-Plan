@@ -1,9 +1,9 @@
 import axios from 'axios';
 
 // Create axios instance with base configuration
-const baseURL = import.meta.env.VITE_API_URL || 'https://veh-maint-app-production.up.railway.app/api';
+const baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://veh-maint-app-production.up.railway.app/api';
 console.log('🔧 API Base URL:', baseURL);
-console.log('🌍 Environment:', import.meta.env.MODE);
+console.log('🌍 Environment:', process.env.NODE_ENV);
 
 const api = axios.create({
   baseURL: baseURL,
