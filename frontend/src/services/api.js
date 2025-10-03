@@ -242,11 +242,51 @@ export const driverService = {
     } catch (error) {
       throw error.response?.data || { message: 'Failed to get driver' };
     }
+  },
+
+  // Create new driver
+  create: async (driverData) => {
+    try {
+      const response = await api.post('/drivers', driverData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to create driver' };
+    }
+  },
+
+  // Update driver
+  update: async (id, driverData) => {
+    try {
+      const response = await api.patch(`/drivers/${id}`, driverData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to update driver' };
+    }
+  },
+
+  // Delete driver
+  delete: async (id) => {
+    try {
+      const response = await api.delete(`/drivers/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to delete driver' };
+    }
+  },
+
+  // Get drivers by status
+  getByStatus: async (status) => {
+    try {
+      const response = await api.get(`/drivers?status=${status}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to get drivers by status' };
+    }
   }
 };
 
 export const vehicleService = {
-  // Get all vehicles
+  // Get all vehicles/equipment
   getAll: async () => {
     try {
       const response = await api.get('/equipment');
@@ -264,12 +304,62 @@ export const vehicleService = {
     } catch (error) {
       throw error.response?.data || { message: 'Failed to get vehicle' };
     }
+  },
+
+  // Create new vehicle/equipment
+  create: async (vehicleData) => {
+    try {
+      const response = await api.post('/equipment', vehicleData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to create vehicle' };
+    }
+  },
+
+  // Update vehicle/equipment
+  update: async (id, vehicleData) => {
+    try {
+      const response = await api.patch(`/equipment/${id}`, vehicleData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to update vehicle' };
+    }
+  },
+
+  // Delete vehicle/equipment
+  delete: async (id) => {
+    try {
+      const response = await api.delete(`/equipment/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to delete vehicle' };
+    }
+  },
+
+  // Get vehicles by category
+  getByCategory: async (category) => {
+    try {
+      const response = await api.get(`/equipment?category=${category}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to get vehicles by category' };
+    }
+  },
+
+  // Get vehicles by location
+  getByLocation: async (location) => {
+    try {
+      const response = await api.get(`/equipment?location=${location}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to get vehicles by location' };
+    }
   }
 };
 
 export const maintenanceService = {
-  // Get maintenance schedules
-  getSchedules: async () => {
+  // Get all maintenance schedules/tasks
+  getAll: async () => {
     try {
       const response = await api.get('/maintenance');
       return response.data;
@@ -278,13 +368,78 @@ export const maintenanceService = {
     }
   },
 
-  // Create maintenance schedule
+  // Get maintenance schedules (alias for backwards compatibility)
+  getSchedules: async () => {
+    return await maintenanceService.getAll();
+  },
+
+  // Get maintenance by ID
+  getById: async (id) => {
+    try {
+      const response = await api.get(`/maintenance/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to get maintenance' };
+    }
+  },
+
+  // Create maintenance schedule/task
   create: async (scheduleData) => {
     try {
       const response = await api.post('/maintenance', scheduleData);
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to create maintenance schedule' };
+    }
+  },
+
+  // Update maintenance schedule/task
+  update: async (id, scheduleData) => {
+    try {
+      const response = await api.patch(`/maintenance/${id}`, scheduleData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to update maintenance' };
+    }
+  },
+
+  // Delete maintenance schedule/task
+  delete: async (id) => {
+    try {
+      const response = await api.delete(`/maintenance/${id}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to delete maintenance' };
+    }
+  },
+
+  // Complete maintenance task
+  complete: async (id, completionData) => {
+    try {
+      const response = await api.patch(`/maintenance/${id}/complete`, completionData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to complete maintenance' };
+    }
+  },
+
+  // Get maintenance by equipment ID
+  getByEquipment: async (equipmentId) => {
+    try {
+      const response = await api.get(`/maintenance?equipmentId=${equipmentId}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to get maintenance for equipment' };
+    }
+  },
+
+  // Get overdue maintenance
+  getOverdue: async () => {
+    try {
+      const response = await api.get('/maintenance?status=overdue');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to get overdue maintenance' };
     }
   }
 };

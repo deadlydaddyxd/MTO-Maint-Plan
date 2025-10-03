@@ -8,6 +8,7 @@ import TaskOrderForm from '../components/TaskOrderForm';
 import EquipmentManager from '../components/EquipmentManager';
 import DriverManager from '../components/DriverManager';
 import MaintenanceScheduler from '../components/MaintenanceScheduler';
+import AdminPanel from '../components/AdminPanel';
 
 export default function Home() {
   const [user, setUser] = useState(null);
@@ -88,6 +89,13 @@ export default function Home() {
             onCancel={() => setCurrentView('dashboard')}
           />
         );
+      case 'admin':
+        return (
+          <AdminPanel 
+            user={user}
+            onClose={() => setCurrentView('dashboard')}
+          />
+        );
       default:
         return <Dashboard user={user} onViewChange={setCurrentView} />;
     }
@@ -132,6 +140,15 @@ export default function Home() {
               onClick={() => setCurrentView('create-task')}
             >
               ➕ New Task Order
+            </button>
+          )}
+
+          {(user.role === 'Commanding Officer' || user.role === 'Transport Officer') && (
+            <button 
+              className={currentView === 'admin' ? 'active' : ''}
+              onClick={() => setCurrentView('admin')}
+            >
+              🛠️ Admin Panel
             </button>
           )}
 

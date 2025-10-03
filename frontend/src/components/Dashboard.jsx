@@ -1,53 +1,80 @@
 import { useState, useMemo, useEffect } from 'react'
-import { vehicleData, generateMaintenanceTasks } from '../data/vehicleData'
+import { vehicleService, maintenanceService, taskOrderService } from '../services/api'
+import DashboardAnalytics from './DashboardAnalytics'
 
 const Dashboard = ({ user, onViewChange }) => {
   const [filterCategory, setFilterCategory] = useState('all')
   const [filterLocation, setFilterLocation] = useState('all')
   const [filterPriority, setFilterPriority] = useState('all')
-  const [smartTasks, setSmartTasks] = useState([])
+  const [vehicles, setVehicles] = useState([])
+  const [maintenanceTasks, setMaintenanceTasks] = useState([])
+  const [taskOrders, setTaskOrders] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [selectedTimeFrame, setSelectedTimeFrame] = useState('week')
+  const [activeTab, setActiveTab] = useState('overview')
 
   useEffect(() => {
-    // Generate intelligent maintenance tasks from vehicle data
-    const generatedTasks = generateMaintenanceTasks()
-    setSmartTasks(generatedTasks)
+    loadDashboardData()
   }, [])
 
-  // Combine all vehicles from different categories
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true)
+      const [vehiclesResponse, maintenanceResponse, taskOrdersResponse] = await Promise.all([
+        vehicleService.getAll(),
+        maintenanceService.getAll(),
+        taskOrderService.getAll()
+      ])
+
+      if (vehiclesResponse.success) {
+        setVehicles(vehiclesResponse.equipment || vehiclesResponse.vehicles || [])
+      }
+      
+      if (maintenanceResponse.success) {
+        setMaintenanceTasks(maintenanceResponse.maintenance || [])
+      }
+      
+      if (taskOrdersResponse.success) {
+        setTaskOrders(taskOrdersResponse.taskOrders || [])
+      }
+    } catch (error) {
+      console.error('Failed to load dashboard data:', error)
+      setError('Failed to load dashboard data')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Use actual vehicles from database
   const allVehicles = useMemo(() => {
-    return [
-      ...vehicleData.plantEquipment,
-      ...vehicleData.bVehicles,
-      ...vehicleData.aVehicles,
-      ...vehicleData.generatorSets,
-      ...vehicleData.trailers
-    ]
-  }, [])
+    return vehicles || []
+  }, [vehicles])
 
   const stats = useMemo(() => {
-    const total = smartTasks.length
-    const overdue = smartTasks.filter(task => 
-      new Date(task.dueDate) < new Date() && !task.isCompleted
+    const allTasks = [...maintenanceTasks, ...taskOrders]
+    const total = allTasks.length
+    const overdue = allTasks.filter(task => 
+      new Date(task.dueDate) < new Date() && !task.isCompleted && task.status !== 'completed'
     ).length
     
     const today = new Date()
-    const dueThisWeek = smartTasks.filter(task => {
+    const dueThisWeek = allTasks.filter(task => {
       const dueDate = new Date(task.dueDate)
       const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
-      return dueDate >= today && dueDate <= nextWeek && !task.isCompleted
+      return dueDate >= today && dueDate <= nextWeek && !task.isCompleted && task.status !== 'completed'
     }).length
     
-    const completed = smartTasks.filter(task => task.isCompleted).length
-    const critical = smartTasks.filter(task => 
-      task.priority === 'Critical' && !task.isCompleted
+    const completed = allTasks.filter(task => task.isCompleted || task.status === 'completed').length
+    const critical = allTasks.filter(task => 
+      task.priority === 'Critical' && !task.isCompleted && task.status !== 'completed'
     ).length
-    const high = smartTasks.filter(task => 
-      task.priority === 'High' && !task.isCompleted
+    const high = allTasks.filter(task => 
+      task.priority === 'High' && !task.isCompleted && task.status !== 'completed'
     ).length
 
     return { total, overdue, dueThisWeek, completed, critical, high }
-  }, [smartTasks])
+  }, [maintenanceTasks, taskOrders])
 
   const locationStats = useMemo(() => {
     const locations = {}
@@ -77,14 +104,23 @@ const Dashboard = ({ user, onViewChange }) => {
   }, [allVehicles])
 
   const filteredTasks = useMemo(() => {
-    let filtered = smartTasks
+    const allTasks = [...maintenanceTasks, ...taskOrders]
+    let filtered = allTasks
 
     if (filterCategory !== 'all') {
-      filtered = filtered.filter(task => task.vehicleCategory === filterCategory)
+      filtered = filtered.filter(task => {
+        // Find associated vehicle
+        const vehicle = vehicles.find(v => v._id === task.equipment || v._id === task.vehicleId)
+        return vehicle?.category === filterCategory
+      })
     }
     
     if (filterLocation !== 'all') {
-      filtered = filtered.filter(task => task.location === filterLocation)
+      filtered = filtered.filter(task => {
+        // Find associated vehicle
+        const vehicle = vehicles.find(v => v._id === task.equipment || v._id === task.vehicleId)
+        return vehicle?.location === filterLocation
+      })
     }
     
     if (filterPriority !== 'all') {
@@ -99,7 +135,7 @@ const Dashboard = ({ user, onViewChange }) => {
       }
       return new Date(a.dueDate) - new Date(b.dueDate)
     })
-  }, [smartTasks, filterCategory, filterLocation, filterPriority])
+  }, [maintenanceTasks, taskOrders, vehicles, filterCategory, filterLocation, filterPriority])
 
   const getMaintenanceStatus = (task) => {
     const today = new Date()
@@ -161,9 +197,49 @@ const Dashboard = ({ user, onViewChange }) => {
     return new Date().getFullYear() - year
   }
 
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-spinner"></div>
+        <p>Loading dashboard data...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="error-container">
+        <p className="error-message">Error: {error}</p>
+        <button onClick={loadDashboardData} className="retry-btn">
+          Retry
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="enhanced-dashboard">
-      {/* Header Stats */}
+      {/* Dashboard Tabs */}
+      <div className="dashboard-tabs">
+        <button 
+          className={`tab ${activeTab === 'overview' ? 'active' : ''}`}
+          onClick={() => setActiveTab('overview')}
+        >
+          📊 Overview
+        </button>
+        <button 
+          className={`tab ${activeTab === 'analytics' ? 'active' : ''}`}
+          onClick={() => setActiveTab('analytics')}
+        >
+          📈 Analytics
+        </button>
+      </div>
+
+      {activeTab === 'analytics' ? (
+        <DashboardAnalytics user={user} />
+      ) : (
+        <>
+          {/* Header Stats */}
       <div className="dashboard-header">
         <h1>MTO Equipment Maintenance Dashboard</h1>
         <div className="header-stats">
@@ -247,11 +323,11 @@ const Dashboard = ({ user, onViewChange }) => {
             <h3>Weekly Maintenance</h3>
             <div className="cycle-stats">
               <div className="cycle-stat">
-                <span className="cycle-number">{smartTasks.filter(t => t.frequency === 'Weekly').length}</span>
+                <span className="cycle-number">{filteredTasks.filter(t => t.frequency === 'Weekly').length}</span>
                 <span className="cycle-label">Total Tasks</span>
               </div>
               <div className="cycle-stat overdue">
-                <span className="cycle-number">{smartTasks.filter(t => t.frequency === 'Weekly' && calculateMaintenanceCycleProgress(t).status === 'overdue').length}</span>
+                <span className="cycle-number">{filteredTasks.filter(t => t.frequency === 'Weekly' && calculateMaintenanceCycleProgress(t).status === 'overdue').length}</span>
                 <span className="cycle-label">Overdue</span>
               </div>
             </div>
@@ -261,11 +337,11 @@ const Dashboard = ({ user, onViewChange }) => {
             <h3>Fortnightly Maintenance</h3>
             <div className="cycle-stats">
               <div className="cycle-stat">
-                <span className="cycle-number">{smartTasks.filter(t => t.frequency === 'Fortnightly').length}</span>
+                <span className="cycle-number">{filteredTasks.filter(t => t.frequency === 'Fortnightly').length}</span>
                 <span className="cycle-label">Total Tasks</span>
               </div>
               <div className="cycle-stat overdue">
-                <span className="cycle-number">{smartTasks.filter(t => t.frequency === 'Fortnightly' && calculateMaintenanceCycleProgress(t).status === 'overdue').length}</span>
+                <span className="cycle-number">{filteredTasks.filter(t => t.frequency === 'Fortnightly' && calculateMaintenanceCycleProgress(t).status === 'overdue').length}</span>
                 <span className="cycle-label">Overdue</span>
               </div>
             </div>
@@ -275,11 +351,11 @@ const Dashboard = ({ user, onViewChange }) => {
             <h3>Monthly Maintenance</h3>
             <div className="cycle-stats">
               <div className="cycle-stat">
-                <span className="cycle-number">{smartTasks.filter(t => t.frequency === 'Monthly').length}</span>
+                <span className="cycle-number">{filteredTasks.filter(t => t.frequency === 'Monthly').length}</span>
                 <span className="cycle-label">Total Tasks</span>
               </div>
               <div className="cycle-stat overdue">
-                <span className="cycle-number">{smartTasks.filter(t => t.frequency === 'Monthly' && calculateMaintenanceCycleProgress(t).status === 'overdue').length}</span>
+                <span className="cycle-number">{filteredTasks.filter(t => t.frequency === 'Monthly' && calculateMaintenanceCycleProgress(t).status === 'overdue').length}</span>
                 <span className="cycle-label">Overdue</span>
               </div>
             </div>
@@ -289,11 +365,11 @@ const Dashboard = ({ user, onViewChange }) => {
             <h3>Quarterly Maintenance</h3>
             <div className="cycle-stats">
               <div className="cycle-stat">
-                <span className="cycle-number">{smartTasks.filter(t => t.frequency === 'Quarterly').length}</span>
+                <span className="cycle-number">{filteredTasks.filter(t => t.frequency === 'Quarterly').length}</span>
                 <span className="cycle-label">Total Tasks</span>
               </div>
               <div className="cycle-stat overdue">
-                <span className="cycle-number">{smartTasks.filter(t => t.frequency === 'Quarterly' && calculateMaintenanceCycleProgress(t).status === 'overdue').length}</span>
+                <span className="cycle-number">{filteredTasks.filter(t => t.frequency === 'Quarterly' && calculateMaintenanceCycleProgress(t).status === 'overdue').length}</span>
                 <span className="cycle-label">Overdue</span>
               </div>
             </div>
@@ -394,13 +470,13 @@ const Dashboard = ({ user, onViewChange }) => {
         <div className="task-list-enhanced">
           {filteredTasks.slice(0, 20).map((task, index) => {
             const status = getMaintenanceStatus(task)
-            const vehicle = allVehicles.find(v => v.id === task.vehicleId)
+            const vehicle = allVehicles.find(v => v._id === task.equipment || v._id === task.vehicleId || v.id === task.vehicleId)
             const vehicleAge = vehicle ? getVehicleAge(vehicle.year) : 0
             
             const cycleProgress = calculateMaintenanceCycleProgress(task)
             
             return (
-              <div key={`${task.vehicleId}-${task.task}-${index}`} className={`task-card-enhanced ${status}`}>
+              <div key={`${task._id || task.id}-${index}`} className={`task-card-enhanced ${status}`}>
                 <div className="task-priority-indicator" style={{ backgroundColor: getPriorityColor(task.priority) }}></div>
                 
                 <div className="task-main-content">
@@ -419,18 +495,18 @@ const Dashboard = ({ user, onViewChange }) => {
                   <div className="task-details-grid">
                     <div className="task-detail">
                       <strong>Vehicle:</strong> 
-                      <span>{task.vehicleName}</span>
-                      <span className="vehicle-id">({task.vehicleId})</span>
+                      <span>{vehicle?.name || vehicle?.vehicleType || task.vehicleName || 'N/A'}</span>
+                      <span className="vehicle-id">({vehicle?.vehicleId || vehicle?.unNumber || task.vehicleId || 'N/A'})</span>
                     </div>
                     
                     <div className="task-detail">
                       <strong>Category:</strong> 
-                      <span>{task.vehicleCategory}</span>
+                      <span>{vehicle?.category || task.vehicleCategory || 'N/A'}</span>
                     </div>
                     
                     <div className="task-detail">
                       <strong>Location:</strong> 
-                      <span>{task.location}</span>
+                      <span>{vehicle?.location || task.location || 'N/A'}</span>
                     </div>
                     
                     <div className="task-detail">
@@ -538,6 +614,8 @@ const Dashboard = ({ user, onViewChange }) => {
           </div>
         )}
       </div>
+        </>
+      )}
     </div>
   )
 }

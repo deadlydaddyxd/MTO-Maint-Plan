@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { taskOrderService, driverService } from '../services/api';
-import { vehicleData } from '../data/vehicleData';
+import { taskOrderService, driverService, vehicleService } from '../services/api';
 
 const TaskOrderForm = ({ onTaskCreated, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -21,12 +20,14 @@ const TaskOrderForm = ({ onTaskCreated, onCancel }) => {
   const [vehicleDetails, setVehicleDetails] = useState({});
   const [photos, setPhotos] = useState([]);
   const [drivers, setDrivers] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Load drivers on component mount
+  // Load drivers and vehicles on component mount
   useEffect(() => {
     loadDrivers();
+    loadVehicles();
   }, []);
 
   const loadDrivers = async () => {
@@ -40,6 +41,17 @@ const TaskOrderForm = ({ onTaskCreated, onCancel }) => {
     }
   };
 
+  const loadVehicles = async () => {
+    try {
+      const result = await vehicleService.getAll();
+      if (result.success) {
+        setVehicles(result.vehicles || result.equipment || []);
+      }
+    } catch (error) {
+      console.error('Failed to load vehicles:', error);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -49,17 +61,10 @@ const TaskOrderForm = ({ onTaskCreated, onCancel }) => {
 
     // Auto-populate vehicle details when vehicle is selected
     if (name === 'vehicleId' && value) {
-      const allVehicles = [
-        ...vehicleData.plantEquipment,
-        ...vehicleData.bVehicles,
-        ...vehicleData.aVehicles,
-        ...vehicleData.generatorSets
-      ];
-      
-      const selectedVehicle = allVehicles.find(v => v.id === value);
+      const selectedVehicle = vehicles.find(v => v._id === value || v.id === value);
       if (selectedVehicle) {
         setVehicleDetails({
-          name: selectedVehicle.name,
+          name: selectedVehicle.name || selectedVehicle.vehicleType,
           location: selectedVehicle.location || 'Not specified',
           currentStatus: selectedVehicle.status || 'Active'
         });
@@ -98,16 +103,21 @@ const TaskOrderForm = ({ onTaskCreated, onCancel }) => {
   };
 
   const getVehiclesByType = (type) => {
-    switch (type) {
-      case 'A Vehicle':
-        return vehicleData.aVehicles;
-      case 'B Vehicle':
-        return vehicleData.bVehicles;
-      case 'C Vehicle':
-        return [...vehicleData.plantEquipment, ...vehicleData.generatorSets];
-      default:
-        return [];
-    }
+    if (!vehicles || vehicles.length === 0) return [];
+    
+    return vehicles.filter(vehicle => {
+      const vehicleCategory = vehicle.category || vehicle.type;
+      switch (type) {
+        case 'A Vehicle':
+          return vehicleCategory === 'A Vehicle';
+        case 'B Vehicle':
+          return vehicleCategory === 'B Vehicle';
+        case 'C Vehicle':
+          return vehicleCategory === 'Plant' || vehicleCategory === 'Generator Set' || vehicleCategory === 'C Vehicle';
+        default:
+          return false;
+      }
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -263,8 +273,8 @@ const TaskOrderForm = ({ onTaskCreated, onCancel }) => {
                 >
                   <option value="">Select Vehicle</option>
                   {getVehiclesByType(formData.vehicleType).map(vehicle => (
-                    <option key={vehicle.id} value={vehicle.id}>
-                      {vehicle.id} - {vehicle.name}
+                    <option key={vehicle._id || vehicle.id} value={vehicle._id || vehicle.id}>
+                      {vehicle.vehicleId || vehicle.unNumber || vehicle.id} - {vehicle.name || vehicle.vehicleType}
                     </option>
                   ))}
                 </select>
@@ -716,3 +726,30 @@ const TaskOrderForm = ({ onTaskCreated, onCancel }) => {
 };
 
 export default TaskOrderForm;
+
+// Image display component for completed task orders
+export const TaskOrderImages = ({ taskOrder }) => {
+  if (!taskOrder?.issuePhotos || taskOrder.issuePhotos.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="task-order-images">
+      <h4>Issue Photos:</h4>
+      <div className="images-grid">
+        {taskOrder.issuePhotos.map((photo, index) => (
+          <div key={index} className="image-item">
+            <img
+              src={photo.url || photo}
+              alt={`Issue photo ${index + 1}`}
+              className="task-image"
+              onError={(e) => {
+                e.target.src = '/placeholder-image.png'; // Fallback image
+              }}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
