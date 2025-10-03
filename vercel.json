@@ -5,7 +5,8 @@
       "src": "frontend/package.json",
       "use": "@vercel/next",
       "config": {
-        "distDir": ".next"
+        "distDir": ".next",
+        "outputFileTracingRoot": "../"
       }
     }
   ],
