@@ -118,13 +118,13 @@ const MaintenanceScheduler = ({ user }) => {
         <h2>Maintenance Schedule</h2>
         <button 
           className="add-btn"
-          onClick={() => setIsAdding(!isAdding)}
+          onClick={() => setIsFormOpen(!isFormOpen)}
         >
-          {isAdding ? 'Cancel' : 'Schedule Maintenance'}
+          {isFormOpen ? 'Cancel' : 'Schedule Maintenance'}
         </button>
       </div>
 
-      {isAdding && (
+      {isFormOpen && (
         <div className="add-form">
           <h3>Schedule New Maintenance Task</h3>
           <form onSubmit={handleSubmit}>
@@ -198,7 +198,7 @@ const MaintenanceScheduler = ({ user }) => {
             </div>
             <div className="form-actions">
               <button type="submit" className="submit-btn">Schedule Task</button>
-              <button type="button" onClick={() => setIsAdding(false)} className="cancel-btn">
+              <button type="button" onClick={() => setIsFormOpen(false)} className="cancel-btn">
                 Cancel
               </button>
             </div>
