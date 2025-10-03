@@ -179,7 +179,6 @@ export const analyticsService = {
 
   getMonthlyTrends: (tasks) => {
     const months = {};
-    const currentYear = new Date().getFullYear();
     
     // Initialize last 12 months
     for (let i = 11; i >= 0; i--) {
