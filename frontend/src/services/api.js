@@ -135,7 +135,7 @@ export const authService = {
       await api.post('/auth/logout');
       SessionManager.clearSession();
       return { success: true };
-    } catch (error) {
+    } catch {
       SessionManager.clearSession(); // Clear session anyway
       return { success: true };
     }
